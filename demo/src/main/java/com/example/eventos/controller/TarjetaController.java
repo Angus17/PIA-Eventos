@@ -5,6 +5,7 @@ import com.example.eventos.repositories.TarjetaRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.TarjetaNoEncontradaException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +28,7 @@ public class TarjetaController {
     @GetMapping("/gettarjetabyid/{id}")
     public Tarjeta getTarjetaById(@PathVariable Integer id) {
         return tarjetaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tarjeta no encontrada con id: " + id));
+                .orElseThrow(() -> new TarjetaNoEncontradaException("Tarjeta no encontrada con id: " + id));
     }
 
     @PostMapping("/posttarjeta")
@@ -38,7 +39,7 @@ public class TarjetaController {
     @PutMapping("/actualizartarjetas/{id}")
     public Tarjeta updateTarjeta(@PathVariable Integer id, @RequestBody @Valid Tarjeta tarjetaActualizada) {
         Tarjeta tarjetaExistente = tarjetaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Tarjeta no encontrada con id: " + id));
+                .orElseThrow(() -> new TarjetaNoEncontradaException("Tarjeta no encontrada con id: " + id));
 
         tarjetaExistente.setProveedor(tarjetaActualizada.getProveedor());
         tarjetaExistente.setDigitos(tarjetaActualizada.getDigitos());
@@ -47,9 +48,9 @@ public class TarjetaController {
     }
 
     @DeleteMapping("/eliminartarjetas/{id}")
-    public String deleteTarjeta(@PathVariable Integer id) {
+    public String deleteTarjeta(@PathVariable Integer id) throws TarjetaNoEncontradaException {
         if (!tarjetaRepository.existsById(id)) {
-            throw new RuntimeException("Tarjeta no encontrada con id: " + id);
+            throw new TarjetaNoEncontradaException("Tarjeta no encontrada con id: " + id);
         }
         tarjetaRepository.deleteById(id);
         return "Tarjeta eliminada con exito";

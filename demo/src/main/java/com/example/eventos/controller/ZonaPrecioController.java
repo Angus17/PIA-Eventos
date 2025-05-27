@@ -5,6 +5,7 @@ import com.example.eventos.repositories.ZonaPrecioRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.ZonaPrecioNoEncontradoException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +28,7 @@ public class ZonaPrecioController {
     @GetMapping("/getzonabyid/{id}")
     public ZonaPrecio getZonaById(@PathVariable Integer id) {
         return zonaPrecioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("ZonaPrecio no encontrada con id: " + id));
+                .orElseThrow(() -> new ZonaPrecioNoEncontradoException("ZonaPrecio no encontrada con id: " + id));
     }
 
     @PostMapping("/postzona")
@@ -38,7 +39,7 @@ public class ZonaPrecioController {
     @PutMapping("/actualizarzona/{id}")
     public ZonaPrecio updateZona(@PathVariable Integer id, @RequestBody @Valid ZonaPrecio zonaActualizada) {
         ZonaPrecio zona = zonaPrecioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("ZonaPrecio no encontrada con id: " + id));
+                .orElseThrow(() -> new ZonaPrecioNoEncontradoException("ZonaPrecio no encontrada con id: " + id));
 
         zona.setNombre(zonaActualizada.getNombre());
         zona.setPrecio(zonaActualizada.getPrecio());
@@ -47,9 +48,9 @@ public class ZonaPrecioController {
     }
 
     @DeleteMapping("/eliminarzona/{id}")
-    public String deleteZona(@PathVariable Integer id) {
+    public String deleteZona(@PathVariable Integer id) throws ZonaPrecioNoEncontradoException {
         if (!zonaPrecioRepository.existsById(id)) {
-            throw new RuntimeException("ZonaPrecio no encontrada con id: " + id);
+            throw new ZonaPrecioNoEncontradoException("ZonaPrecio no encontrada con id: " + id);
         }
         zonaPrecioRepository.deleteById(id);
         return "ZonaPrecio eliminada con exito";

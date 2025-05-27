@@ -5,6 +5,7 @@ import com.example.eventos.repositories.DetalleVentaRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.DetalleVentaNoEncontradoException;
 
 import java.util.List;
 
@@ -23,7 +24,7 @@ public class DetalleVentaController {
     @GetMapping("/getdetalleventabyid/{id}")
     public DetalleVenta getDetalleById(@PathVariable Integer id) {
         return detalleVentaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("DetalleVenta no encontrado con id: " + id));
+                .orElseThrow(() -> new DetalleVentaNoEncontradoException("DetalleVenta no encontrado con id: " + id));
     }
 
     @PostMapping("/postdetalleventa")
@@ -34,7 +35,7 @@ public class DetalleVentaController {
     @PutMapping("/actualizardetalleventa/{id}")
     public DetalleVenta updateDetalle(@PathVariable Integer id, @RequestBody @Valid DetalleVenta detalleActualizado) {
         DetalleVenta existente = detalleVentaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("DetalleVenta no encontrado con id: " + id));
+                .orElseThrow(() -> new DetalleVentaNoEncontradoException("DetalleVenta no encontrado con id: " + id));
 
         existente.setCantidadVendido(detalleActualizado.getCantidadVendido());
         existente.setPrecioUnitario(detalleActualizado.getPrecioUnitario());
@@ -49,9 +50,9 @@ public class DetalleVentaController {
     }
 
     @DeleteMapping("/eliminardetalleventa/{id}")
-    public String deleteDetalle(@PathVariable Integer id) {
+    public String deleteDetalle(@PathVariable Integer id) throws DetalleVentaNoEncontradoException {
         if (!detalleVentaRepository.existsById(id)) {
-            throw new RuntimeException("DetalleVenta no encontrado con id: " + id);
+            throw new DetalleVentaNoEncontradoException("DetalleVenta no encontrado con id: " + id);
         }
         detalleVentaRepository.deleteById(id);
         return "DetalleVenta eliminado con exito";

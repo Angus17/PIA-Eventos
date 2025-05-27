@@ -5,6 +5,7 @@ import com.example.eventos.repositories.MunicipioRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.MunicipioNoEncontradoException;
 
 import java.util.List;
 
@@ -23,7 +24,7 @@ public class MunicipioController {
     @GetMapping("/getmunicipiosbyid/{id}")
     public Municipio getMunicipioById(@PathVariable Integer id) {
         return municipioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Municipio no encontrado con id: " + id));
+                .orElseThrow(() -> new MunicipioNoEncontradoException("Municipio no encontrado con id: " + id));
     }
 
     @PostMapping("/postmunicipios")
@@ -34,7 +35,7 @@ public class MunicipioController {
     @PutMapping("/actualizarmunicipios/{id}")
     public Municipio updateMunicipio(@PathVariable Integer id, @RequestBody @Valid Municipio municipioActualizado) {
         Municipio existente = municipioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Municipio no encontrado con id: " + id));
+                .orElseThrow(() -> new MunicipioNoEncontradoException("Municipio no encontrado con id: " + id));
 
         existente.setNombre(municipioActualizado.getNombre());
         existente.setClaveMunicipio(municipioActualizado.getClaveMunicipio());
@@ -44,9 +45,9 @@ public class MunicipioController {
     }
 
     @DeleteMapping("/eliminarmunicipios/{id}")
-    public String deleteMunicipio(@PathVariable Integer id) {
+    public String deleteMunicipio(@PathVariable Integer id) throws MunicipioNoEncontradoException {
         if (!municipioRepository.existsById(id)) {
-            throw new RuntimeException("Municipio no encontrado con id: " + id);
+            throw new MunicipioNoEncontradoException("Municipio no encontrado con id: " + id);
         }
         municipioRepository.deleteById(id);
         return "Municipio eliminado con exito";

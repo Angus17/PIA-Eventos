@@ -5,6 +5,7 @@ import com.example.eventos.repositories.EventoRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.EventoNoEncontradoException;
 
 import java.util.List;
 
@@ -23,7 +24,7 @@ public class EventoController {
     @GetMapping("/geteventosbyid/{id}")
     public Evento getEventoById(@PathVariable Integer id) {
         return eventoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Evento no encontrado con id: " + id));
+                .orElseThrow(() -> new EventoNoEncontradoException("Evento no encontrado con id: " + id));
     }
 
     @PostMapping("/posteventos")
@@ -34,7 +35,7 @@ public class EventoController {
     @PutMapping("/actualizareventos/{id}")
     public Evento updateEvento(@PathVariable Integer id, @RequestBody @Valid Evento eventoActualizado) {
         Evento existente = eventoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Evento no encontrado con id: " + id));
+                .orElseThrow(() -> new EventoNoEncontradoException("Evento no encontrado con id: " + id));
 
         existente.setNombre(eventoActualizado.getNombre());
         existente.setFechaEvento(eventoActualizado.getFechaEvento());
@@ -46,9 +47,9 @@ public class EventoController {
     }
 
     @DeleteMapping("/eliminareventos/{id}")
-    public String deleteEvento(@PathVariable Integer id) {
+    public String deleteEvento(@PathVariable Integer id) throws EventoNoEncontradoException {
         if (!eventoRepository.existsById(id)) {
-            throw new RuntimeException("Evento no encontrado con id: " + id);
+            throw new EventoNoEncontradoException("Evento no encontrado con id: " + id);
         }
         eventoRepository.deleteById(id);
         return "Evento eliminado con exito";

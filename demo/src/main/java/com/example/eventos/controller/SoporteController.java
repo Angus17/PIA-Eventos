@@ -5,6 +5,7 @@ import com.example.eventos.repositories.SoporteRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.SoporteNoEncontradoException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +28,7 @@ public class SoporteController {
     @GetMapping("/getsoportebyid/{id}")
     public Soporte getSoporteById(@PathVariable Integer id) {
         return soporteRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Soporte no encontrado con id: " + id));
+                .orElseThrow(() -> new SoporteNoEncontradoException("Soporte no encontrado con id: " + id));
     }
 
     @PostMapping("/postsoporte")
@@ -38,7 +39,7 @@ public class SoporteController {
     @PutMapping("/actualizarsoportes/{id}")
     public Soporte updateSoporte(@PathVariable Integer id, @RequestBody @Valid Soporte soporteActualizado) {
         Soporte soporteExistente = soporteRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Soporte no encontrado con id: " + id));
+                .orElseThrow(() -> new SoporteNoEncontradoException("Soporte no encontrado con id: " + id));
 
         soporteExistente.setCliente(soporteActualizado.getCliente());
         soporteExistente.setEmpleado(soporteActualizado.getEmpleado());
@@ -50,9 +51,9 @@ public class SoporteController {
     }
 
     @DeleteMapping("/eliminarsoportes/{id}")
-    public String deleteSoporte(@PathVariable Integer id) {
+    public String deleteSoporte(@PathVariable Integer id) throws SoporteNoEncontradoException {
         if (!soporteRepository.existsById(id)) {
-            throw new RuntimeException("Soporte no encontrado con id: " + id);
+            throw new SoporteNoEncontradoException("Soporte no encontrado con id: " + id);
         }
         soporteRepository.deleteById(id);
         return "Soporte eliminado con exito";

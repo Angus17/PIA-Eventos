@@ -5,6 +5,7 @@ import com.example.eventos.repositories.MetodoPagoRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.MetodoPagoNoEncontradoException;
 
 import java.util.List;
 
@@ -23,7 +24,7 @@ public class MetodoPagoController {
     @GetMapping("/getmetodopagobyid/{id}")
     public MetodoPago getMetodoById(@PathVariable Integer id) {
         return metodoPagoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Metodo de pago no encontrado con id: " + id));
+                .orElseThrow(() -> new MetodoPagoNoEncontradoException("Metodo de pago no encontrado con id: " + id));
     }
 
     @PostMapping("/postmetodopago")
@@ -34,7 +35,7 @@ public class MetodoPagoController {
     @PutMapping("/actualizarmetodopago/{id}")
     public MetodoPago updateMetodo(@PathVariable Integer id, @RequestBody @Valid MetodoPago metodoActualizado) {
         MetodoPago existente = metodoPagoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Metodo de pago no encontrado con id: " + id));
+                .orElseThrow(() -> new MetodoPagoNoEncontradoException("Metodo de pago no encontrado con id: " + id));
 
         existente.setProveedor(metodoActualizado.getProveedor());
         existente.setNombre(metodoActualizado.getNombre());
@@ -44,9 +45,9 @@ public class MetodoPagoController {
     }
 
     @DeleteMapping("/eliminarmetodopago/{id}")
-    public String deleteMetodo(@PathVariable Integer id) {
+    public String deleteMetodo(@PathVariable Integer id) throws MetodoPagoNoEncontradoException {
         if (!metodoPagoRepository.existsById(id)) {
-            throw new RuntimeException("Metodo de pago no encontrado con id: " + id);
+            throw new MetodoPagoNoEncontradoException("Metodo de pago no encontrado con id: " + id);
         }
         metodoPagoRepository.deleteById(id);
         return "Metodo de pago eliminado con exito";

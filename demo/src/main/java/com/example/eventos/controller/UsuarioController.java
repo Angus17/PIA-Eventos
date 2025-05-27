@@ -5,6 +5,7 @@ import com.example.eventos.repositories.UsuarioRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.UsuarioNoEncontradoException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +28,7 @@ public class UsuarioController {
     @GetMapping("/getusuariobyid/{id}")
     public Usuario getUsuarioById(@PathVariable Integer id) {
         return usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con id: " + id));
+                .orElseThrow(() -> new UsuarioNoEncontradoException("Usuario no encontrado con id: " + id));
     }
 
     @PostMapping("/postusuario")
@@ -38,7 +39,7 @@ public class UsuarioController {
     @PutMapping("/actualizarusuarios/{id}")
     public Usuario updateUsuario(@PathVariable Integer id, @RequestBody @Valid Usuario usuarioActualizado) {
         Usuario usuario = usuarioRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Usuario no encontrado con id: " + id));
+                .orElseThrow(() -> new UsuarioNoEncontradoException("Usuario no encontrado con id: " + id));
 
         usuario.setNombreUsuario(usuarioActualizado.getNombreUsuario());
         usuario.setContrasenia(usuarioActualizado.getContrasenia());
@@ -49,9 +50,9 @@ public class UsuarioController {
     }
 
     @DeleteMapping("/eliminarusuarios/{id}")
-    public String deleteUsuario(@PathVariable Integer id) {
+    public String deleteUsuario(@PathVariable Integer id) throws UsuarioNoEncontradoException {
         if (!usuarioRepository.existsById(id)) {
-            throw new RuntimeException("Usuario no encontrado con id: " + id);
+            throw new UsuarioNoEncontradoException("Usuario no encontrado con id: " + id);
         }
         usuarioRepository.deleteById(id);
         return "Usuario eliminado con exito";

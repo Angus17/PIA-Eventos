@@ -5,6 +5,7 @@ import com.example.eventos.repositories.PromocionRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.PromocionNoEncontradaException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -27,7 +28,7 @@ public class PromocionController {
     @GetMapping("/getpromocionbyid/{id}")
     public Promocion getPromocionById(@PathVariable Integer id) {
         return promocionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Promocion no encontrada con id: " + id));
+                .orElseThrow(() -> new PromocionNoEncontradaException("Promocion no encontrada con id: " + id));
     }
 
     @PostMapping("/postpromocion")
@@ -38,7 +39,7 @@ public class PromocionController {
     @PutMapping("/actualizarpromociones/{id}")
     public Promocion updatePromocion(@PathVariable Integer id, @RequestBody @Valid Promocion promocionActualizada) {
         Promocion promocionExistente = promocionRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Promocion no encontrada con id: " + id));
+                .orElseThrow(() -> new PromocionNoEncontradaException("Promocion no encontrada con id: " + id));
 
         promocionExistente.setCodigoPromocion(promocionActualizada.getCodigoPromocion());
         promocionExistente.setPorcentajeDescuento(promocionActualizada.getPorcentajeDescuento());
@@ -50,9 +51,9 @@ public class PromocionController {
     }
 
     @DeleteMapping("/eliminarpromociones/{id}")
-    public String deletePromocion(@PathVariable Integer id) {
+    public String deletePromocion(@PathVariable Integer id) throws PromocionNoEncontradaException {
         if (!promocionRepository.existsById(id)) {
-            throw new RuntimeException("Promocion no encontrada con id: " + id);
+            throw new PromocionNoEncontradaException("Promocion no encontrada con id: " + id);
         }
         promocionRepository.deleteById(id);
         return "Promocion eliminada con exito";

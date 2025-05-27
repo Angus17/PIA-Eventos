@@ -5,6 +5,7 @@ import com.example.eventos.repositories.OrganizadorRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.OrganizadorNoEncontradoException;
 
 import java.util.List;
 
@@ -23,7 +24,7 @@ public class OrganizadorController {
     @GetMapping("/getorganizadoresbyid/{id}")
     public Organizador getOrganizadorById(@PathVariable Integer id) {
         return organizadorRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Organizador no encontrado con id: " + id));
+                .orElseThrow(() -> new OrganizadorNoEncontradoException("Organizador no encontrado con id: " + id));
     }
 
     @PostMapping("/postorganizadores")
@@ -34,7 +35,7 @@ public class OrganizadorController {
     @PutMapping("/actualizarorganizadores/{id}")
     public Organizador updateOrganizador(@PathVariable Integer id, @RequestBody @Valid Organizador organizadorActualizado) {
         Organizador existente = organizadorRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Organizador no encontrado con id: " + id));
+                .orElseThrow(() -> new OrganizadorNoEncontradoException("Organizador no encontrado con id: " + id));
 
         existente.setNombre(organizadorActualizado.getNombre());
         existente.setApellidos(organizadorActualizado.getApellidos());
@@ -47,9 +48,9 @@ public class OrganizadorController {
     }
 
     @DeleteMapping("/eliminarorganizadores/{id}")
-    public String deleteOrganizador(@PathVariable Integer id) {
+    public String deleteOrganizador(@PathVariable Integer id) throws OrganizadorNoEncontradoException {
         if (!organizadorRepository.existsById(id)) {
-            throw new RuntimeException("Organizador no encontrado con id: " + id);
+            throw new OrganizadorNoEncontradoException("Organizador no encontrado con id: " + id);
         }
         organizadorRepository.deleteById(id);
         return "Organizador eliminado con exito";

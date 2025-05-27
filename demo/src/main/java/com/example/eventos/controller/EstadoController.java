@@ -5,6 +5,7 @@ import com.example.eventos.repositories.EstadoRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.EstadoNoEncontradoException;
 
 import java.util.List;
 
@@ -23,7 +24,7 @@ public class EstadoController {
     @GetMapping("/getestadosbyid/{id}")
     public Estado getEstadoById(@PathVariable Integer id) {
         return estadoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Estado no encontrado con id: " + id));
+                .orElseThrow(() -> new EstadoNoEncontradoException("Estado no encontrado con id: " + id));
     }
 
     @PostMapping("/postestados")
@@ -34,7 +35,7 @@ public class EstadoController {
     @PutMapping("/actualizarestados/{id}")
     public Estado updateEstado(@PathVariable Integer id, @RequestBody @Valid Estado estadoActualizado) {
         Estado existente = estadoRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Estado no encontrado con id: " + id));
+                .orElseThrow(() -> new EstadoNoEncontradoException("Estado no encontrado con id: " + id));
 
         existente.setNombre(estadoActualizado.getNombre());
         existente.setClaveEstado(estadoActualizado.getClaveEstado());
@@ -43,9 +44,9 @@ public class EstadoController {
     }
 
     @DeleteMapping("/eliminarestados/{id}")
-    public String deleteEstado(@PathVariable Integer id) {
+    public String deleteEstado(@PathVariable Integer id) throws EstadoNoEncontradoException {
         if (!estadoRepository.existsById(id)) {
-            throw new RuntimeException("Estado no encontrado con id: " + id);
+            throw new EstadoNoEncontradoException("Estado no encontrado con id: " + id);
         }
         estadoRepository.deleteById(id);
         return "Estado eliminado con exito";

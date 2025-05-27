@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.*;
 
 import com.example.eventos.models.Rol;
 import com.example.eventos.repositories.RolRepository;
+import com.example.eventos.exceptions.RolNoEncontradoException;
 
 import jakarta.validation.Valid;
 
@@ -28,21 +29,21 @@ public class RolController {
     }
 
     @GetMapping("/getrolbyid/{id}")
-    public Rol getRolById(@PathVariable Integer id) {return rRoles.findById(id).orElseThrow(() -> new RuntimeException("Rol no encontrado con id: " + id));}
+    public Rol getRolById(@PathVariable Integer id) {return rRoles.findById(id).orElseThrow(() -> new RolNoEncontradoException("Rol no encontrado con id: " + id));}
 
     @PutMapping("/actualizarrol/{id}")
     public Rol updateRol(@PathVariable Integer id, @RequestBody @Valid Rol rolActualizado) {
         Rol rolExistente = rRoles.findById(id)
-                .orElseThrow(() -> new RuntimeException("Rol no encontrado con id: " + id));
+                .orElseThrow(() -> new RolNoEncontradoException("Rol no encontrado con id: " + id));
 
         rolExistente.setNombre(rolActualizado.getNombre());
         return rRoles.save(rolExistente);
     }
 
     @DeleteMapping("/eliminarrol/{id}")
-    public String deleteRol(@PathVariable Integer id) {
+    public String deleteRol(@PathVariable Integer id) throws RolNoEncontradoException {
         if (!rRoles.existsById(id)) {
-            throw new RuntimeException("Rol no encontrado con id: " + id);
+            throw new RolNoEncontradoException("Rol no encontrado con id: " + id);
         }
         rRoles.deleteById(id);
         return "Rol eliminado con exito";

@@ -4,6 +4,7 @@ import com.example.eventos.models.Venta;
 import com.example.eventos.repositories.VentaRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.VentaNoEncontradaException;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -26,7 +27,7 @@ public class VentaController {
     @GetMapping("/getventabyid/{id}")
     public Venta getVentaById(@PathVariable Integer id) {
         return ventaRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Venta no encontrada con id: " + id));
+                .orElseThrow(() -> new VentaNoEncontradaException("Venta no encontrada con id: " + id));
     }
 
     @PostMapping("/postventa")
@@ -35,9 +36,9 @@ public class VentaController {
     }
 
     @DeleteMapping("/eliminarventas/{id}")
-    public String deleteVenta(@PathVariable Integer id) {
+    public String deleteVenta(@PathVariable Integer id) throws VentaNoEncontradaException {
         if (!ventaRepository.existsById(id)) {
-            throw new RuntimeException("Venta no encontrada con id: " + id);
+            throw new VentaNoEncontradaException("Venta no encontrada con id: " + id);
         }
         ventaRepository.deleteById(id);
         return "Venta eliminada con éxito";

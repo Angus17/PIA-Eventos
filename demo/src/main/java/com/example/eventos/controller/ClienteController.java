@@ -5,6 +5,7 @@ import com.example.eventos.repositories.ClienteRepository;
 import jakarta.validation.Valid;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
+import com.example.eventos.exceptions.ClienteNoEncontradoException;
 
 import java.util.List;
 
@@ -23,7 +24,7 @@ public class ClienteController {
     @GetMapping("/getclientebyid/{id}")
     public Cliente getClienteById(@PathVariable Integer id) {
         return clienteRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cliente no encontrado con id: " + id));
+                .orElseThrow(() -> new ClienteNoEncontradoException("Cliente no encontrado con id: " + id));
     }
 
     @PostMapping("/postcliente")
@@ -34,7 +35,7 @@ public class ClienteController {
     @PutMapping("/actualizarcliente/{id}")
     public Cliente updateCliente(@PathVariable Integer id, @RequestBody @Valid Cliente clienteActualizado) {
         Cliente clienteExistente = clienteRepository.findById(id)
-                .orElseThrow(() -> new RuntimeException("Cliente no encontrado con id: " + id));
+                .orElseThrow(() -> new ClienteNoEncontradoException("Cliente no encontrado con id: " + id));
 
         clienteExistente.setNombre(clienteActualizado.getNombre());
         clienteExistente.setApellido(clienteActualizado.getApellido());
@@ -49,9 +50,9 @@ public class ClienteController {
     }
 
     @DeleteMapping("/eliminarcliente/{id}")
-    public String deleteCliente(@PathVariable Integer id) {
+    public String deleteCliente(@PathVariable Integer id) throws ClienteNoEncontradoException {
         if (!clienteRepository.existsById(id)) {
-            throw new RuntimeException("Cliente no encontrado con id: " + id);
+            throw new ClienteNoEncontradoException("Cliente no encontrado con id: " + id);
         }
         clienteRepository.deleteById(id);
         return "Cliente eliminado con éxito";
