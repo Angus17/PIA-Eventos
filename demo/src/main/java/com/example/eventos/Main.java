@@ -1,10 +1,14 @@
 package com.example.eventos;
 
+import java.io.IOException;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.CommandLineRunner;
@@ -15,13 +19,17 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 
 import com.example.eventos.exceptions.EventoNoEncontradoException;
+import com.example.eventos.exceptions.MunicipioNoEncontradoException;
 import com.example.eventos.exceptions.OrganizadorNoEncontradoException;
+import com.example.eventos.exceptions.RolNoEncontradoException;
 import com.example.eventos.exceptions.UbicacionNoEncontradaException;
 import com.example.eventos.exceptions.UsuarioNoEncontradoException;
 import com.example.eventos.exceptions.ZonaPrecioNoEncontradoException;
 import com.example.eventos.models.Cliente;
 import com.example.eventos.models.Empleado;
+import com.example.eventos.models.Estado;
 import com.example.eventos.models.Evento;
+import com.example.eventos.models.Municipio;
 import com.example.eventos.models.Organizador;
 import com.example.eventos.models.Rol;
 import com.example.eventos.models.Ubicacion;
@@ -33,9 +41,11 @@ import com.example.eventos.repositories.EstadoRepository;
 import com.example.eventos.repositories.EventoRepository;
 import com.example.eventos.repositories.MunicipioRepository;
 import com.example.eventos.repositories.OrganizadorRepository;
+import com.example.eventos.repositories.RolRepository;
 import com.example.eventos.repositories.UbicacionRepository;
 import com.example.eventos.repositories.UsuarioRepository;
 import com.example.eventos.repositories.ZonaPrecioRepository;
+import com.example.eventos.services.EventoServices;
 
 
 @SpringBootApplication
@@ -46,6 +56,15 @@ public class Main
 	Organizador organizadorSeleccionado = null;
 	ZonaPrecio zonaPrecioSeleccionada = null;
 	Evento eventoSeleccionado = null;
+	Municipio municipioSeleccionado = null;
+
+	Set<String> conjuntoEventos = new HashSet<>();
+
+	@Autowired
+	private EventoServices eventoServices;
+
+	@Autowired
+    private ApplicationContext appContext;
 
 	@Autowired
     private EstadoRepository estadoRepository;
@@ -73,6 +92,9 @@ public class Main
 
 	@Autowired
 	private EventoRepository eventoRepository;
+
+	@Autowired
+	private RolRepository rolRepository;
 	
 
 	public static void main(String[] args) 
@@ -93,7 +115,7 @@ public class Main
 				new ProcessBuilder("clear").inheritIO().start().waitFor();
 			}
 		}
-		catch (Exception e)
+		catch (IOException | InterruptedException e)
 		{
 			e.printStackTrace();
 		}
@@ -108,6 +130,36 @@ public class Main
 		catch (Exception e)
 		{
 			e.printStackTrace();
+		}
+	}
+
+	public void listarEventosProximosCliente() 
+	{
+		limpiar_pantalla();
+		System.out.println("----------- EVENTOS PRÓXIMOS -----------");
+		
+		List<Evento> eventosProximos = eventoRepository.findAllByFechaEventoAfterOrderByFechaEventoAsc(LocalDateTime.now());
+
+		if (eventosProximos.isEmpty()) {
+			System.out.println("No hay eventos próximos disponibles en este momento.");
+		} else {
+			DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+			System.out.println("ID | Evento                 | Fecha y Hora        | Zona                   | Precio   | Lugar");
+			System.out.println("----------------------------------------------------------------------------------------------------");
+			for (Evento evento : eventosProximos) {
+				String nombreLugar = evento.getUbicacion() != null ? evento.getUbicacion().getNombre() : "N/A"; // Asumiendo que Ubicacion tiene getNombre()
+				String nombreZona = evento.getZonaPrecio() != null ? evento.getZonaPrecio().getNombre() : "N/A";
+				BigDecimal precioZona = evento.getZonaPrecio() != null ? evento.getZonaPrecio().getPrecio() : BigDecimal.ZERO;
+
+				System.out.printf("%-3d| %-22s | %-19s | %-22s | $%-7.2f | %s\n",
+						evento.getIdEvento(),
+						evento.getNombre(),
+						evento.getFechaEvento().format(formatter),
+						nombreZona,
+						precioZona,
+						nombreLugar);
+			}
+			System.out.println("----------------------------------------------------------------------------------------------------");
 		}
 	}
 
@@ -134,7 +186,7 @@ public class Main
 				case 1 -> 
 				{
 					int tipo_usuario;
-					String nombre_usuario, contrasenia, estado, municipio;
+					String nombre_usuario, contrasenia, estado, municipio = "";
 					String nombre_empleado_cliente;
 					String apellido, segundo_apellido;
 					String calle, colonia;
@@ -230,21 +282,31 @@ public class Main
 						}
 					} while (!estadoRepository.findByNombre(estado).isPresent());
 
+					Optional<Estado> estadoOptional = estadoRepository.findByNombre(estado);
+					Estado estadoObtenido = estadoOptional.get();
+
 					do 
 					{ 
 						limpiar_pantalla();
 
-						System.out.println("Escriba el municipio de residencia: ");
-
-						municipio = System.console().readLine();
-
-						// Validar que exista en la base de datos usando findByNombre()
-
-						if (!municipioRepository.findByNombre(municipio).isPresent()) 
+						try 
 						{
-							System.out.println("Municipio no encontrado, intente nuevamente.");
+							System.out.println("Escriba el municipio de residencia: ");
+	
+							municipio = System.console().readLine();
+	
+							// Validar que exista en la base de datos usando findByNombre()
+							
+							municipioSeleccionado = municipioRepository.findByNombreAndEstado(municipio, estadoObtenido).orElseThrow(() -> new MunicipioNoEncontradoException("Municipio no encontrado"));
+
+						} 
+						catch (MunicipioNoEncontradoException e) 
+						{
+							System.out.println(e.getMessage());
+							pausar_terminal();
 						}
-					} while (!municipioRepository.findByNombre(municipio).isPresent());
+
+					} while (municipioSeleccionado == null);
 
 					
 					if( tipo_usuario == 1 )
@@ -256,8 +318,8 @@ public class Main
 						empleado.setCalle(calle);
 						empleado.setNumeroDomicilio(numero_domicilio);
 						empleado.setColonia(colonia);
-						empleado.setMunicipio(municipioRepository.findByNombre(municipio).orElse(null));
-						empleado.setEstado(estadoRepository.findByNombre(estado).orElse(null));
+						empleado.setMunicipio(municipioSeleccionado);
+						empleado.setEstado(estadoObtenido);
 
 						empleadoRepository.save(empleado);
 
@@ -285,8 +347,8 @@ public class Main
 						cliente.setCalle(calle);
 						cliente.setNumeroDomicilio(numero_domicilio);
 						cliente.setColonia(colonia);
-						cliente.setMunicipio(municipioRepository.findByNombre(municipio).orElse(null));
-						cliente.setEstado(estadoRepository.findByNombre(estado).orElse(null));
+						cliente.setMunicipio(municipioSeleccionado);
+						cliente.setEstado(estadoObtenido);
 
 						clienteRepository.save(cliente);
 
@@ -367,6 +429,12 @@ public class Main
 					Usuario usuario = usuarioRepository.findByNombreUsuario(nombre_usuario_eliminar).orElse(null);
 					if (usuario != null) 
 					{
+						if (usuario.getRol().getNombre().equals("Empleado")) 
+						{
+							Empleado empleado_eliminar = usuario.getEmpleado();
+							empleadoRepository.delete(empleado_eliminar);
+						}
+
 						usuarioRepository.delete(usuario);
 						System.out.println("Usuario eliminado exitosamente.");
 					} 
@@ -577,6 +645,7 @@ public class Main
 							ZonaPrecio nueva_zona = zonaPrecioRepository.findByNombre(zona).orElseThrow();
 							Evento nuevo_evento = new Evento();
 
+							conjuntoEventos.add(nombre_evento);
 							nuevo_evento.setNombre(nombre_evento);
 							nuevo_evento.setFechaEvento(fechaHora);
 							nuevo_evento.setUbicacion(ubicacionSeleccionada);
@@ -603,96 +672,237 @@ public class Main
 						});
 					}
 					case 3 -> 
-					{
+					{ // Actualizar Evento
 						int opcion_actualizacion;
-						String nombre_evento = "";
+						String nombre_evento_base; // Renombrado para claridad
+						Evento eventoParaActualizar = null; // El evento específico que se modificará
 
-						do 
-						{ 
-							limpiar_pantalla();
+						limpiar_pantalla();
+						System.out.println("--- Actualizar Evento ---");
 
-							try 
-							{
-								System.out.println("Que evento quieres actualizar? Ingresa su nombre: ");
-	
-								eventoRepository.findAll().forEach(evento ->
-								{
-									System.out.println("Evento: " + evento.getNombre() );
-								});
-	
-								nombre_evento = System.console().readLine();
-	
-								eventoSeleccionado = eventoRepository.findByNombre(nombre_evento).orElseThrow(() -> new EventoNoEncontradoException("Evento no encontrado"));
+						// Paso 1: Pedir el nombre base del evento
+						System.out.println("Eventos existentes (nombres base):");
+						
+						conjuntoEventos.clear(); // Limpiar para obtener la lista más actualizada
+						eventoRepository.findAll().forEach(evento -> conjuntoEventos.add(evento.getNombre()));
+						if (conjuntoEventos.isEmpty()) {
+							System.out.println("No hay eventos para actualizar.");
+							pausar_terminal();
+							break; // Salir del case 3
+						}
+						for (String nombreUnico : conjuntoEventos) {
+							System.out.println("- " + nombreUnico);
+						}
+						System.out.print("Ingrese el nombre base del evento que desea actualizar: ");
+						nombre_evento_base = System.console().readLine();
+
+						// Paso 2: Encontrar todas las presentaciones de ese evento
+						List<Evento> eventosConEseNombre = eventoRepository.findAllByNombre(nombre_evento_base);
+
+						if (eventosConEseNombre.isEmpty()) {
+							System.out.println("No se encontró ningún evento con el nombre: " + nombre_evento_base);
+						} else if (eventosConEseNombre.size() == 1) {
+							eventoParaActualizar = eventosConEseNombre.get(0);
+							System.out.println("Se actualizará el evento: " + eventoParaActualizar.getNombre() + " (ID: " + eventoParaActualizar.getIdEvento() + ")");
+						} else {
+							System.out.println("Se encontraron múltiples presentaciones para '" + nombre_evento_base + "'. Por favor, seleccione una por ID:");
+							DateTimeFormatter formatterLista = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+							for (Evento ev : eventosConEseNombre) {
+								System.out.printf("ID: %-5d | Nombre: %-20s | Fecha: %-16s | Zona: %-15s | Ubicación: %s\n",
+										ev.getIdEvento(),
+										ev.getNombre(),
+										ev.getFechaEvento() != null ? ev.getFechaEvento().format(formatterLista) : "N/A",
+										ev.getZonaPrecio() != null ? ev.getZonaPrecio().getNombre() : "N/A",
+										ev.getUbicacion() != null ? ev.getUbicacion().getNombre() : "N/A");
+							}
+							System.out.print("Ingrese el ID del evento específico que desea actualizar: ");
+							try {
+								Integer idSeleccionado = Integer.parseInt(System.console().readLine());
+								Optional<Evento> eventoOpt = eventosConEseNombre.stream()
+																.filter(ev -> ev.getIdEvento().equals(idSeleccionado))
+																.findFirst();
+								if (eventoOpt.isPresent()) {
+									eventoParaActualizar = eventoOpt.get();
+								} else {
+									System.out.println("ID no válido o no corresponde a los eventos listados.");
+								}
+							} catch (NumberFormatException e) {
+								System.out.println("Entrada no válida para el ID.");
+							}
+						}
+
+						// Paso 3: Si se seleccionó un evento específico, proceder con el menú de actualización
+						if (eventoParaActualizar != null) {
+							
+							final Evento eventoFinalParaActualizar = eventoParaActualizar; // Necesario para lambdas/clases anónimas si las usas
+
+							do {
+								limpiar_pantalla();
+								System.out.println("Actualizando Evento: " + eventoFinalParaActualizar.getNombre() + " (ID: " + eventoFinalParaActualizar.getIdEvento() + ")");
+								System.out.println("Zona: " + (eventoFinalParaActualizar.getZonaPrecio() != null ? eventoFinalParaActualizar.getZonaPrecio().getNombre() : "N/A"));
+								System.out.println("1. Actualizar Nombre de esta presentación del evento"); // Cambiado para reflejar que es una presentación
+								System.out.println("2. Actualizar Fecha de esta presentación");
+								System.out.println("3. Actualizar Lugar de esta presentación");
+								System.out.println("4. Actualizar Organizador de esta presentación");
 								
-							} 
-							catch (EventoNoEncontradoException e) 
-							{
-								System.out.println(e.getMessage());
-								pausar_terminal();
-							}
+								System.out.println("5. Regresar al menú previo");
+								System.out.print("Seleccione una opción: ");
+								
+								opcion_actualizacion = 0; // Resetear
+								try {
+									opcion_actualizacion = Integer.parseInt(System.console().readLine());
+								} catch (NumberFormatException e) {
+									System.out.println("Opción inválida. Intente de nuevo.");
+									pausar_terminal();
+									continue;
+								}
 
-						} while (eventoSeleccionado == null);
 
-						do 
-						{ 
-							limpiar_pantalla();
-
-							System.out.println("1.Actualizar Nombre de evento");
-							System.out.println("2.Actualizar Fecha de evento");
-							System.out.println("3.Actualizar Lugar del evento");
-							System.out.println("4.Actualizar Organizador");
-							System.out.println("5.Actualizar Zonas de evento");
-							System.out.println("6. Regresar al menu previo");
-
-							opcion_actualizacion = Integer.parseInt(System.console().readLine());
-
-							switch(opcion_actualizacion)
-							{
-								case 1 ->
+								switch (opcion_actualizacion) 
 								{
-									limpiar_pantalla();
-									
-									
-										Optional<Evento> eventoOptional = eventoRepository.findByNombre(nombre_evento);
-										System.out.print("Ingrese el nuevo nombre del evento: ");
+									case 1 -> 
+									{
+										// Actualizar Nombre de esta presentación
+										limpiar_pantalla();
+										System.out.print("Ingrese el nuevo nombre para esta presentación del evento: ");
 										String nombre_evento_nuevo = System.console().readLine();
-
-										Evento nuevo_evento = eventoOptional.get();
-										nuevo_evento.setNombre(nombre_evento_nuevo);
-										eventoRepository.save(nuevo_evento);
-
-										System.out.println("Nombre de Evento actualizado exitosamente!");
+										eventoFinalParaActualizar.setNombre(nombre_evento_nuevo);
+										eventoRepository.save(eventoFinalParaActualizar);
+										System.out.println("Nombre de la presentación del evento actualizado exitosamente!");
+									}
+									case 2 -> 
+									{
+										DateTimeFormatter formatter = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm");
+										LocalDateTime nuevaFechaHora = null;
+										do {
+											limpiar_pantalla();
+											System.out.print("Ingrese la nueva fecha del evento (dd-MM-yyyy HH:mm): ");
+											String fecha_evento_str = System.console().readLine();
+											try {
+												nuevaFechaHora = LocalDateTime.parse(fecha_evento_str, formatter);
+											} catch (Exception e) {
+												System.out.println("Formato inválido. Por favor use el formato dd-MM-yyyy HH:mm");
+											}
+										} while (nuevaFechaHora == null);
+										eventoFinalParaActualizar.setFechaEvento(nuevaFechaHora);
+										eventoRepository.save(eventoFinalParaActualizar);
+										System.out.println("Fecha del evento actualizada exitosamente!");
+									}
+									case 3 -> 
+									{
+										// Actualizar Lugar
+			
+										Ubicacion nuevaUbicacionSeleccionada = null;
+										do {
+											limpiar_pantalla();
+											System.out.println("Seleccione el ID de la nueva ubicación del evento:");
+											ubicacionRepository.findAll().forEach(ubicacion -> System.out.printf("ID: %d, Nombre: %s, Dirección: %s %s, %s\n", ubicacion.getIdUbicacion(), ubicacion.getNombre(), ubicacion.getCalle(), ubicacion.getNumero(), ubicacion.getColonia()));
+											System.out.print("ID Ubicación: ");
+											try {
+												Integer id_ubicacion_ingresada = Integer.parseInt(System.console().readLine());
+												nuevaUbicacionSeleccionada = ubicacionRepository.findById(id_ubicacion_ingresada)
+														.orElseThrow(() -> new UbicacionNoEncontradaException("Ubicación no disponible para ese ID."));
+											} catch (NumberFormatException e) {
+												System.out.println("ID de ubicación inválido.");
+											} catch (UbicacionNoEncontradaException e) {
+												System.out.println(e.getMessage());
+												pausar_terminal();
+											}
+										} while (nuevaUbicacionSeleccionada == null);
+										eventoFinalParaActualizar.setUbicacion(nuevaUbicacionSeleccionada);
+										eventoRepository.save(eventoFinalParaActualizar);
+										System.out.println("Lugar del evento actualizado exitosamente!");
+									}
+									case 4 -> 
+									{
+										// Actualizar Organizador
+										Organizador nuevoOrganizadorSeleccionado = null;
+										do {
+											limpiar_pantalla();
+											System.out.println("Estos son los organizadores disponibles, selecciona al nuevo escribiendo su EMPRESA:");
+											organizadorRepository.findAll().forEach(organizador -> System.out.printf("Empresa: %s, Nombre: %s %s\n", organizador.getEmpresa(), organizador.getNombre(), organizador.getApellidos()));
+											System.out.print("Empresa del organizador: ");
+											try {
+												String empresa_organizador = System.console().readLine();
+												nuevoOrganizadorSeleccionado = organizadorRepository.findByEmpresa(empresa_organizador)
+														.orElseThrow(() -> new OrganizadorNoEncontradoException("Organizador no disponible con esa empresa."));
+											} catch (OrganizadorNoEncontradoException e) {
+												System.out.println(e.getMessage());
+												pausar_terminal();
+											}
+										} while (nuevoOrganizadorSeleccionado == null);
+										eventoFinalParaActualizar.setOrganizador(nuevoOrganizadorSeleccionado);
+										eventoRepository.save(eventoFinalParaActualizar);
+										System.out.println("Organizador actualizado exitosamente!");
+									}
+									case 5 -> 
+									{
+										limpiar_pantalla();
+										System.out.println("Regresando al menú previo...");
+									}
+									default -> System.out.println("Opción no válida, intente nuevamente.");
 								}
-								case 2 ->
-								{
-									
-								}
-								case 3 ->
-								{
 
+								if (opcion_actualizacion >= 1 && opcion_actualizacion <= 4) { // Solo pausar si se hizo una actualización
+									pausar_terminal();
 								}
-								case 4 ->
-								{
 
-								}
-								case 5 ->
-								{
+							} while (opcion_actualizacion != 5);
+							// --- Fin de tu lógica de submenú de actualización ---
+						} else {
+							// No se seleccionó un evento para actualizar (o no se encontró)
+							System.out.println("No se ha seleccionado un evento para actualizar.");
+						}
+						if (eventoParaActualizar == null) { // Si no se actualizó nada o no se encontró evento
+							pausar_terminal();
+						}
+					} // Fin del case 3
 
-								}
-								case 6 ->
-								{
+					case 4 -> 
+					{
+						limpiar_pantalla(); // Moví limpiar_pantalla aquí para que se vea el menú antes.
+						String nombre_evento_a_eliminar = ""; // Renombrado para claridad
 
+						// Lógica para obtener el nombre del evento a eliminar (la tenías un poco mezclada con la de actualizar)
+						// Simplificando para el ejemplo de borrado:
+						System.out.println("¿Qué evento (nombre base) quieres eliminar todas sus presentaciones?");
+						if (conjuntoEventos.isEmpty()) {
+							eventoRepository.findAll().forEach(ev -> conjuntoEventos.add(ev.getNombre()));
+						}
+						conjuntoEventos.forEach(nombre -> System.out.println("- " + nombre));
+						System.out.print("Ingresa el nombre base del evento a eliminar: ");
+						nombre_evento_a_eliminar = System.console().readLine();
+
+						// Confirmación
+						List<Evento> eventosAEliminar = eventoRepository.findAllByNombre(nombre_evento_a_eliminar);
+						if (eventosAEliminar.isEmpty()) {
+							System.out.println("No se encontraron eventos con el nombre: " + nombre_evento_a_eliminar);
+						} 
+						else 
+						{
+							System.out.println("Se encontraron " + eventosAEliminar.size() + " presentaciones para el evento '" + nombre_evento_a_eliminar + "'.");
+							System.out.print("¿Está seguro de que desea eliminar TODAS estas presentaciones? (Sí/No): ");
+							String confirmacion = System.console().readLine();
+
+							if (confirmacion.equalsIgnoreCase("Sí") || confirmacion.equalsIgnoreCase("Si")) {
+								try {
+									// ANTES (causaba error de transacción):
+									// eventoRepository.deleteAllByNombre(nombre_evento_a_eliminar);
+
+									// AHORA: Llama al método del servicio
+									eventoServices.borrarEventosPorNombre(nombre_evento_a_eliminar);
+
+									conjuntoEventos.remove(nombre_evento_a_eliminar); // Actualiza tu Set local
+									System.out.println("Todas las presentaciones del evento '" + nombre_evento_a_eliminar + "' han sido eliminadas.");
+								} catch (Exception e) { // Captura excepciones más generales por si acaso
+									System.out.println("Ocurrió un error al eliminar el evento: " + e.getMessage());
+									e.printStackTrace(); // Útil para depuración
 								}
+							} else {
+								System.out.println("Operación de eliminación cancelada.");
 							}
-
-							if( opcion_actualizacion != 6 )
-							{
-								pausar_terminal();
-							}
-
-						} while ( opcion_actualizacion != 6 );
+						}
 					}
-					case 4 -> System.out.println("Función para eliminar evento no implementada.");
 					case 5 -> System.out.println("Volviendo al menú principal...");
 					default -> System.out.println("Opción no válida, intente nuevamente.");
 				}
@@ -725,7 +935,7 @@ public class Main
 					{
 						case 1 -> 
 						{
-							
+							listarEventosProximosCliente();
 						}
 						case 2 -> System.out.println("Función para comprar entradas no implementada.");
 						case 3 -> System.out.println("Función para ver eventos comprados no implementada.");
@@ -738,7 +948,7 @@ public class Main
 						pausar_terminal();
 					}
 
-				} while (opcion_menu_eventos != 2);
+				} while (opcion_menu_eventos != 4);
 			}
 	}
 
@@ -876,7 +1086,7 @@ public class Main
 					System.out.println("2. Gestion de Eventos");
 					System.out.println("3. Gestion de Clientes");
 					System.out.println("4. Gestion de Ventas");
-					System.out.println("5. Salir");
+					System.out.println("5. Cerrar Sesion");
 
 					System.out.print("Seleccione una opción: ");
 					opcion_menu = Integer.parseInt(System.console().readLine());
@@ -905,7 +1115,7 @@ public class Main
 						System.out.println("1. Gestion de Eventos");
 						System.out.println("2. Gestion de Clientes");
 						System.out.println("3. Gestion de Ventas");
-						System.out.println("4. Salir");
+						System.out.println("4. Cerrar Sesion");
 
 						System.out.print("Seleccione una opción: ");
 						opcion_menu = Integer.parseInt(System.console().readLine());
@@ -931,7 +1141,7 @@ public class Main
 						do 
 						{ 
 							System.out.println("1. Gestion de Eventos");
-							System.out.println("2. Salir");
+							System.out.println("2. Cerrar Sesion");
 
 							System.out.print("Seleccione una opción: ");
 							opcion_menu = Integer.parseInt(System.console().readLine());
@@ -967,11 +1177,11 @@ public class Main
 			
 			int opcion;
 			boolean contrasenia_aceptada;
-			
+
 			do
 			{
 				limpiar_pantalla();
-
+				
 				System.out.println("Bienvenido al sistema de eventos");
 				System.out.println("1. Iniciar Sesión");
 				System.out.println("2. Salir");
@@ -985,7 +1195,7 @@ public class Main
 				{
 					case 1 -> 
 					{
-
+						
 						BCryptPasswordEncoder encoder = new BCryptPasswordEncoder();
 
 						// Inserta el nombre de usuario
@@ -1032,6 +1242,11 @@ public class Main
 					case 2 -> 
 					{
 						System.out.println("Saliendo del sistema...");
+
+						int exitcode = SpringApplication.exit(ctx, () -> 0);
+
+						System.exit(exitcode);
+						
 						return;
                     }
 					
@@ -1046,6 +1261,4 @@ public class Main
             } while (opcion != 2);
 		};
 	}
-
-	
 }
